@@ -4,6 +4,7 @@ import Home from './pages/Home';
 import Game from './pages/Game';
 import RoomLobby from './components/RoomLobby/RoomLobby';
 import { Difficulty, GameMode, PlayerKey, GameState } from './types';
+import { getSocket, getServerUrl } from './multiplayer/socketClient';
 import './index.css';
 
 type AppView = 'landing' | 'home' | 'lobby' | 'game';
@@ -26,6 +27,22 @@ export default function App() {
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
   }, [theme]);
+
+  // Warm up socket connection & server on initial page load in background
+  useEffect(() => {
+    try {
+      const s = getSocket();
+      if (!s.connected) {
+        s.connect();
+      }
+      const url = getServerUrl();
+      if (url && url.startsWith('http')) {
+        fetch(`${url}/health`, { mode: 'cors' }).catch(() => {});
+      }
+    } catch {
+      // Ignore background warmup errors
+    }
+  }, []);
 
   function toggleTheme() {
     setTheme((t) => (t === 'dark' ? 'light' : 'dark'));

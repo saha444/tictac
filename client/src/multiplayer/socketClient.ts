@@ -24,11 +24,11 @@ export function getSocket(): Socket {
 
     socket = io(targetUrl, {
       transports: ['polling', 'websocket'],
-      autoConnect: false,
+      autoConnect: true,
       reconnection: true,
-      reconnectionAttempts: 10,
-      reconnectionDelay: 1000,
-      timeout: 15000,
+      reconnectionAttempts: 15,
+      reconnectionDelay: 800,
+      timeout: 20000,
     });
   }
   return socket;
