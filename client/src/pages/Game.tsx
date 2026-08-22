@@ -128,7 +128,10 @@ export default function Game({
       if (!data) return;
 
       if (data.type === 'STATE_UPDATE') {
-        setGameState(data.gameState);
+        setGameState((prev) => ({
+          ...data.gameState,
+          myPlayerKey: prev.myPlayerKey || myPlayerKey,
+        }));
         if (data.gameState.status === 'playing' && data.gameState.winner === null) {
           setLastStartingPlayer(data.gameState.currentPlayer);
         }
@@ -146,6 +149,7 @@ export default function Game({
           status: 'playing',
           winner: null,
           winningCells: [],
+          myPlayerKey,
         };
         setGameState(resetState);
         setP1RematchReady(false);
@@ -168,6 +172,7 @@ export default function Game({
             status: 'playing',
             winner: null,
             winningCells: [],
+            myPlayerKey,
           };
           setGameState(resetState);
           setP1RematchReady(false);
@@ -218,6 +223,7 @@ export default function Game({
         status: result.winner ? 'finished' : 'playing',
         winner: result.winner,
         winningCells: result.winningCells,
+        myPlayerKey,
       };
 
       setGameState(newState);
@@ -244,6 +250,7 @@ export default function Game({
       status: 'playing',
       winner: null,
       winningCells: [],
+      myPlayerKey: prev.myPlayerKey || myPlayerKey,
     }));
   }
 
@@ -272,6 +279,7 @@ export default function Game({
       status: 'playing',
       winner: null,
       winningCells: [],
+      myPlayerKey,
     };
 
     setGameState(newGameState);
@@ -310,6 +318,7 @@ export default function Game({
         status: 'playing',
         winner: null,
         winningCells: [],
+        myPlayerKey,
       };
       setGameState(resetState);
       setP1RematchReady(false);
@@ -320,6 +329,10 @@ export default function Game({
         playerKey: myPlayerKey,
         p1Ready: true,
         p2Ready: true,
+      });
+      peerSession.conn.send({
+        type: 'STATE_UPDATE',
+        gameState: resetState,
       });
     } else {
       peerSession.conn.send({
