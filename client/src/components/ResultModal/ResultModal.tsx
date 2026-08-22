@@ -7,10 +7,14 @@ interface ResultModalProps {
   p1RematchReady?: boolean;
   p2RematchReady?: boolean;
   consecutiveDraws?: number;
+  is4GridRequestedByMe?: boolean;
+  is4GridChallengedByOpponent?: boolean;
+  opponentName?: string;
   onPlayAgain: () => void;
   onHome: () => void;
   onRematch?: () => void;
   onSwitch4Grid?: () => void;
+  onAccept4Grid?: () => void;
 }
 
 export default function ResultModal({
@@ -20,10 +24,14 @@ export default function ResultModal({
   p1RematchReady = false,
   p2RematchReady = false,
   consecutiveDraws = 0,
+  is4GridRequestedByMe = false,
+  is4GridChallengedByOpponent = false,
+  opponentName = 'opponent',
   onPlayAgain,
   onHome,
   onRematch,
   onSwitch4Grid,
+  onAccept4Grid,
 }: ResultModalProps) {
   const { winner } = gameState;
 
@@ -44,7 +52,7 @@ export default function ResultModal({
   const isMultiplayer = mode === 'multiplayer';
   const showRematch = isMultiplayer && onRematch;
   const myRematchReady = myPlayerKey === 'player1' ? p1RematchReady : p2RematchReady;
-  const show4GridPrompt = consecutiveDraws >= 3 && onSwitch4Grid;
+  const show4GridPrompt = (consecutiveDraws >= 3 || is4GridRequestedByMe || is4GridChallengedByOpponent) && (onSwitch4Grid || onAccept4Grid);
 
   return (
     <div
@@ -89,7 +97,34 @@ export default function ResultModal({
           {title}
         </h2>
 
-        {show4GridPrompt && (
+        {is4GridChallengedByOpponent && onAccept4Grid && (
+          <div className="mb-md">
+            <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: '8px' }}>
+              {opponentName} challenged you to a 4 grid play!
+            </div>
+            <button
+              id="btn-accept-4grid"
+              className="btn btn--primary"
+              onClick={onAccept4Grid}
+              style={{ width: '100%', padding: '12px', fontSize: '0.95rem' }}
+            >
+              accept 4 grid play
+            </button>
+          </div>
+        )}
+
+        {is4GridRequestedByMe && (
+          <button
+            id="btn-waiting-4grid"
+            className="btn btn--ghost mb-md"
+            disabled
+            style={{ width: '100%', padding: '12px', fontSize: '0.95rem' }}
+          >
+            waiting for opponent to accept 4 grid...
+          </button>
+        )}
+
+        {!is4GridChallengedByOpponent && !is4GridRequestedByMe && show4GridPrompt && onSwitch4Grid && (
           <button
             id="btn-switch-4grid"
             className="btn btn--primary mb-md"

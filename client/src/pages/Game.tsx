@@ -80,6 +80,9 @@ export default function Game({
   const [consecutiveDraws, setConsecutiveDraws] = useState(0);
   const [p1RematchReady, setP1RematchReady] = useState(false);
   const [p2RematchReady, setP2RematchReady] = useState(false);
+  const [is4GridRequestedByMe, setIs4GridRequestedByMe] = useState(false);
+  const [is4GridChallengedByOpponent, setIs4GridChallengedByOpponent] = useState(false);
+
   const aiTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -122,6 +125,23 @@ export default function Game({
 
       if (data.type === 'STATE_UPDATE') {
         setGameState(data.gameState);
+      } else if (data.type === 'CHALLENGE_4GRID') {
+        setIs4GridChallengedByOpponent(true);
+      } else if (data.type === 'ACCEPT_4GRID') {
+        const resetState: GameState = {
+          ...gameState,
+          board: initializeBoard(4),
+          gridSize: 4,
+          currentPlayer: 'player1',
+          status: 'playing',
+          winner: null,
+          winningCells: [],
+        };
+        setGameState(resetState);
+        setP1RematchReady(false);
+        setP2RematchReady(false);
+        setIs4GridRequestedByMe(false);
+        setIs4GridChallengedByOpponent(false);
       } else if (data.type === 'REMATCH_REQUEST') {
         if (data.playerKey === 'player1') setP1RematchReady(true);
         if (data.playerKey === 'player2') setP2RematchReady(true);
@@ -212,12 +232,23 @@ export default function Game({
   }
 
   function handleSwitch4Grid() {
-    const nextGridSize = 4;
-    const newBoard = initializeBoard(nextGridSize);
+    if (!isMultiplayer) {
+      handleAccept4Grid();
+      return;
+    }
+
+    setIs4GridRequestedByMe(true);
+    if (peerSession?.conn) {
+      peerSession.conn.send({ type: 'CHALLENGE_4GRID' });
+    }
+  }
+
+  function handleAccept4Grid() {
+    const newBoard = initializeBoard(4);
     const newGameState: GameState = {
       ...gameState,
       board: newBoard,
-      gridSize: nextGridSize,
+      gridSize: 4,
       currentPlayer: 'player1',
       status: 'playing',
       winner: null,
@@ -227,8 +258,11 @@ export default function Game({
     setGameState(newGameState);
     setP1RematchReady(false);
     setP2RematchReady(false);
+    setIs4GridRequestedByMe(false);
+    setIs4GridChallengedByOpponent(false);
 
     if (isMultiplayer && peerSession?.conn) {
+      peerSession.conn.send({ type: 'ACCEPT_4GRID' });
       peerSession.conn.send({
         type: 'STATE_UPDATE',
         gameState: newGameState,
@@ -279,6 +313,11 @@ export default function Game({
     ? gameState.currentPlayer === myPlayerKey
     : gameState.currentPlayer === 'player1';
 
+  const opponentName =
+    myPlayerKey === 'player1'
+      ? (gameState.players.player2?.name || 'player 2')
+      : (gameState.players.player1.name || 'player 1');
+
   return (
     <div className="page page--wide page-enter">
       <button className="nav-back" onClick={onHome}>
@@ -318,10 +357,14 @@ export default function Game({
           p1RematchReady={p1RematchReady}
           p2RematchReady={p2RematchReady}
           consecutiveDraws={consecutiveDraws}
+          is4GridRequestedByMe={is4GridRequestedByMe}
+          is4GridChallengedByOpponent={is4GridChallengedByOpponent}
+          opponentName={opponentName}
           onPlayAgain={handlePlayAgain}
           onHome={onHome}
           onRematch={isMultiplayer ? handleRematch : undefined}
           onSwitch4Grid={handleSwitch4Grid}
+          onAccept4Grid={handleAccept4Grid}
         />
       )}
     </div>

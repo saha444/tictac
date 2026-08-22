@@ -1,11 +1,13 @@
 // ============================================================
-// WINNER DETECTION — Based on multiplication products
+// WINNER DETECTION — Based on multiplication products & Early Draw Analysis
 // ============================================================
 
 import {
   getWinningLines,
   getWinProduct,
   EMPTY,
+  P1_VALUE,
+  P2_VALUE,
   getLineProduct,
 } from './multiplicationEngine';
 
@@ -13,6 +15,27 @@ export type WinnerResult = {
   winner: 'player1' | 'player2' | 'draw' | null;
   winningCells: number[];
 };
+
+/**
+ * Evaluates whether a draw is mathematically inevitable.
+ * Returns true if neither player has any remaining unblocked winning line.
+ */
+export function isDrawInevitable(board: number[], gridSize: number = 3): boolean {
+  const winningLines = getWinningLines(gridSize);
+
+  // A line is winnable for P1 if it contains NO P2 pieces
+  const isP1Winnable = winningLines.some((line) =>
+    line.every((idx) => board[idx] !== P2_VALUE)
+  );
+
+  // A line is winnable for P2 if it contains NO P1 pieces
+  const isP2Winnable = winningLines.some((line) =>
+    line.every((idx) => board[idx] !== P1_VALUE)
+  );
+
+  // If both players are blocked on all lines, a draw is guaranteed!
+  return !isP1Winnable && !isP2Winnable;
+}
 
 /**
  * Check the board for a winner.
@@ -34,7 +57,7 @@ export function checkWinner(board: number[]): WinnerResult {
     }
   }
 
-  if (checkDraw(board)) {
+  if (checkDraw(board) || isDrawInevitable(board, gridSize)) {
     return { winner: 'draw', winningCells: [] };
   }
 

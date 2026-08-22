@@ -286,23 +286,24 @@ input {
 
 .board {
   display: grid;
-  gap: 8px;
-  padding: 14px;
+  gap: clamp(4px, 1.5vw, 8px);
+  padding: clamp(8px, 2.5vw, 14px);
   background: var(--card-bg);
   border: 1px solid var(--card-border);
   border-radius: 20px;
   backdrop-filter: blur(8px);
-  max-width: 440px;
+  max-width: min(92vw, 420px);
   width: 100%;
+  margin: 0 auto;
 }
 
 .cell {
   width: 100%;
   aspect-ratio: 1 / 1;
-  border-radius: 12px;
+  border-radius: clamp(8px, 2vw, 12px);
   background: var(--btn-bg);
   border: 1px solid var(--btn-border);
-  font-size: clamp(1.6rem, 5vw, 2.4rem);
+  font-size: clamp(1.2rem, 4.5vw, 2.2rem) !important;
   display: flex;
   align-items: center;
   justify-content: center;
