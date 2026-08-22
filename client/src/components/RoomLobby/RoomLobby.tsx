@@ -39,11 +39,7 @@ export default function RoomLobby({ mySymbol, onBack, onGameReady }: RoomLobbyPr
 
     function onConnectError() {
       setIsConnected(false);
-      if (!isServerConfigured()) {
-        setError('multiplayer server url (VITE_SERVER_URL) is missing in vercel settings');
-      } else {
-        setError('unable to connect to multiplayer server');
-      }
+      setError('connecting to multiplayer server... please wait a few seconds');
     }
 
     function onGameStart({ room }: any) {
