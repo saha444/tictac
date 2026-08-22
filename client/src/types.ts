@@ -7,6 +7,7 @@ export type WinnerType = 'player1' | 'player2' | 'draw' | null;
 export type Difficulty = 'easy' | 'tricky';
 
 export interface PlayerInfo {
+  name?: string;
   symbol: string;
   value: 2 | 5;
   rematchReady?: boolean;

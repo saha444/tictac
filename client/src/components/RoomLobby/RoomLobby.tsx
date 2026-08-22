@@ -13,6 +13,7 @@ interface RoomLobbyProps {
 
 export default function RoomLobby({ mySymbol, onBack, onGameReady }: RoomLobbyProps) {
   const [view, setView] = useState<'choose' | 'create' | 'join'>('choose');
+  const [playerName, setPlayerName] = useState('');
   const [createdCode, setCreatedCode] = useState('');
   const [isWaiting, setIsWaiting] = useState(false);
   const [joinCode, setJoinCode] = useState('');
@@ -21,11 +22,16 @@ export default function RoomLobby({ mySymbol, onBack, onGameReady }: RoomLobbyPr
   const [isConnecting, setIsConnecting] = useState(false);
 
   function handleCreateRoom() {
+    if (!playerName.trim()) {
+      setError('please enter your name first');
+      return;
+    }
     setError('');
     setIsConnecting(true);
 
     createPeerRoom(
       mySymbol,
+      playerName.trim(),
       (code) => {
         setCreatedCode(code);
         setIsWaiting(true);
@@ -43,6 +49,10 @@ export default function RoomLobby({ mySymbol, onBack, onGameReady }: RoomLobbyPr
   }
 
   function handleJoinRoom() {
+    if (!playerName.trim()) {
+      setError('please enter your name first');
+      return;
+    }
     const code = joinCode.trim().toUpperCase();
     if (code.length < 4) {
       setError('enter a valid room code');
@@ -54,6 +64,7 @@ export default function RoomLobby({ mySymbol, onBack, onGameReady }: RoomLobbyPr
     joinPeerRoom(
       code,
       mySymbol,
+      playerName.trim(),
       (session, initialGameState) => {
         onGameReady(session, initialGameState);
       },
@@ -99,9 +110,8 @@ export default function RoomLobby({ mySymbol, onBack, onGameReady }: RoomLobbyPr
 
           <div className="flex items-center" style={{ gap: '8px', justifyContent: 'center' }}>
             <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-              your symbol:
+              {playerName} ({mySymbol})
             </span>
-            <span style={{ fontSize: '1.5rem' }}>{mySymbol}</span>
           </div>
 
           <div className="waiting-indicator">
@@ -127,10 +137,22 @@ export default function RoomLobby({ mySymbol, onBack, onGameReady }: RoomLobbyPr
 
         <div className="logo">
           <h1 className="logo__title">join room</h1>
-          <p className="logo__sub">enter your friend's room code</p>
+          <p className="logo__sub">enter room details</p>
         </div>
 
         <div className="card">
+          <div className="input-group mb-md">
+            <label className="input-label" htmlFor="player-name-input">your name</label>
+            <input
+              id="player-name-input"
+              className="text-input"
+              placeholder="enter your name"
+              value={playerName}
+              onChange={(e) => setPlayerName(e.target.value)}
+              maxLength={12}
+            />
+          </div>
+
           <div className="input-group">
             <label className="input-label" htmlFor="join-code-input">room code</label>
             <input
@@ -140,7 +162,6 @@ export default function RoomLobby({ mySymbol, onBack, onGameReady }: RoomLobbyPr
               value={joinCode}
               onChange={(e) => setJoinCode(e.target.value.toUpperCase().slice(0, 5))}
               maxLength={5}
-              autoFocus
               onKeyDown={(e) => e.key === 'Enter' && handleJoinRoom()}
             />
           </div>
@@ -155,7 +176,7 @@ export default function RoomLobby({ mySymbol, onBack, onGameReady }: RoomLobbyPr
             id="btn-join-room"
             className="btn btn--secondary"
             onClick={handleJoinRoom}
-            disabled={joinCode.length < 4 || isConnecting}
+            disabled={joinCode.length < 4 || !playerName.trim() || isConnecting}
             style={{ marginTop: '16px' }}
           >
             {isConnecting ? 'connecting...' : 'join room'}
@@ -175,6 +196,18 @@ export default function RoomLobby({ mySymbol, onBack, onGameReady }: RoomLobbyPr
       </div>
 
       <div className="card">
+        <div className="input-group mb-md">
+          <label className="input-label" htmlFor="player-name-main">your name</label>
+          <input
+            id="player-name-main"
+            className="text-input"
+            placeholder="enter your name"
+            value={playerName}
+            onChange={(e) => setPlayerName(e.target.value)}
+            maxLength={12}
+          />
+        </div>
+
         <div className="flex items-center gap-sm mb-md">
           <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>
             your symbol:
@@ -193,7 +226,7 @@ export default function RoomLobby({ mySymbol, onBack, onGameReady }: RoomLobbyPr
             id="btn-create-room"
             className="btn btn--primary"
             onClick={handleCreateRoom}
-            disabled={isConnecting}
+            disabled={!playerName.trim() || isConnecting}
           >
             {isConnecting ? 'creating room...' : 'create room'}
           </button>
@@ -203,7 +236,7 @@ export default function RoomLobby({ mySymbol, onBack, onGameReady }: RoomLobbyPr
           <button
             id="btn-join-room-view"
             className="btn btn--secondary"
-            onClick={() => setView('join')}
+            onClick={() => { setView('join'); setError(''); }}
           >
             join a room
           </button>

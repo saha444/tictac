@@ -1,5 +1,5 @@
 import Peer, { DataConnection } from 'peerjs';
-import { GameState, PlayerKey } from '../types';
+import { GameState, PlayerKey, getPairedSymbol } from '../types';
 import { initializeBoard } from '../game/boardLogic';
 import { P1_VALUE, P2_VALUE } from '../game/multiplicationEngine';
 
@@ -36,6 +36,7 @@ export function generateRoomCode(): string {
 
 export function createPeerRoom(
   symbol: string,
+  playerName: string,
   onCodeReady: (code: string) => void,
   onGameReady: (session: PeerSession, initialGameState: GameState) => void,
   onError: (errorMsg: string) => void
@@ -51,7 +52,7 @@ export function createPeerRoom(
 
   peer.on('error', (err) => {
     if (err.type === 'unavailable-id') {
-      createPeerRoom(symbol, onCodeReady, onGameReady, onError);
+      createPeerRoom(symbol, playerName, onCodeReady, onGameReady, onError);
     } else {
       onError('connection error: ' + (err.message || 'unable to host room'));
     }
@@ -59,12 +60,19 @@ export function createPeerRoom(
 
   peer.on('connection', (conn) => {
     conn.on('open', () => {
-      const p2Symbol = (conn.metadata && conn.metadata.symbol) ? conn.metadata.symbol : '○';
+      let p2Symbol = (conn.metadata && conn.metadata.symbol) ? conn.metadata.symbol : '○';
+      const p2Name = (conn.metadata && conn.metadata.name) ? conn.metadata.name : 'player 2';
+
+      // Ensure no two players can have the exact same symbol
+      if (p2Symbol === symbol) {
+        p2Symbol = getPairedSymbol(symbol);
+      }
+
       const initialGameState: GameState = {
         board: initializeBoard(),
         players: {
-          player1: { symbol, value: P1_VALUE },
-          player2: { symbol: p2Symbol, value: P2_VALUE },
+          player1: { symbol, value: P1_VALUE, name: playerName || 'player 1' },
+          player2: { symbol: p2Symbol, value: P2_VALUE, name: p2Name },
         },
         currentPlayer: 'player1',
         status: 'playing',
@@ -94,6 +102,7 @@ export function createPeerRoom(
 export function joinPeerRoom(
   roomCode: string,
   symbol: string,
+  playerName: string,
   onGameReady: (session: PeerSession, initialGameState: GameState) => void,
   onError: (errorMsg: string) => void
 ) {
@@ -104,12 +113,12 @@ export function joinPeerRoom(
 
   peer.on('open', () => {
     const conn = peer.connect(hostPeerId, {
-      metadata: { symbol },
+      metadata: { symbol, name: playerName || 'player 2' },
       reliable: true,
     });
 
     conn.on('open', () => {
-      // Data channel open, host will transmit GAME_START
+      // Waiting for GAME_START payload
     });
 
     conn.on('data', (data: any) => {

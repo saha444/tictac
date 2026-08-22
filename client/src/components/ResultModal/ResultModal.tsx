@@ -21,109 +21,107 @@ export default function ResultModal({
   onHome,
   onRematch,
 }: ResultModalProps) {
-  const { winner, players } = gameState;
-  const p1 = players.player1;
-  const p2 = players.player2;
+  const { winner } = gameState;
 
   if (!winner) return null;
 
-  const mySymbol = myPlayerKey === 'player1' ? p1.symbol : (p2?.symbol ?? '?');
-  const opponentSymbol = myPlayerKey === 'player1' ? (p2?.symbol ?? '?') : p1.symbol;
-
   let title = '';
-  let subtitle = '';
-  let symbols = '';
-
   if (winner === 'draw') {
-    title = 'Draw';
-    subtitle = 'No Winning Product Was Created. Equal Forces!';
-    symbols = `${mySymbol} ${opponentSymbol}`;
+    title = 'draw';
   } else if (
     (winner === 'player1' && myPlayerKey === 'player1') ||
     (winner === 'player2' && myPlayerKey === 'player2')
   ) {
-    title = mode === 'computer' ? 'You Win!' : 'Player Wins!';
-    subtitle =
-      mode === 'computer'
-        ? 'The Multiplication Engine Is On Your Side!'
-        : 'Perfect Alignment. Victory Achieved!';
-    symbols = `${mySymbol} ${mySymbol} ${mySymbol}`;
+    title = 'you win';
   } else {
-    title = mode === 'computer' ? 'Game Over' : 'Opponent Wins';
-    subtitle =
-      mode === 'computer'
-        ? 'The Ai Predicted Your Move. Try Again!'
-        : 'Better Luck Next Time!';
-    symbols = `${opponentSymbol} ${opponentSymbol} ${opponentSymbol}`;
+    title = 'you lose';
   }
 
-  const winnerLabel =
-    mode === 'multiplayer' && winner !== 'draw'
-      ? winner === 'player1'
-        ? `${p1.symbol} Player 1 Wins`
-        : `${p2?.symbol ?? '?'} Player 2 Wins`
-      : title;
-
-  const displayTitle = mode === 'multiplayer' && winner !== 'draw' ? winnerLabel : title;
-
-  const showRematch = mode === 'multiplayer' && onRematch;
+  const isMultiplayer = mode === 'multiplayer';
+  const showRematch = isMultiplayer && onRematch;
   const myRematchReady = myPlayerKey === 'player1' ? p1RematchReady : p2RematchReady;
 
   return (
-    <div className="modal-overlay" role="dialog" aria-modal="true" aria-label="Game Result">
-      <div className="modal">
+    <div
+      style={{
+        position: 'fixed',
+        inset: 0,
+        zIndex: 100,
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'flex-end',
+        padding: '24px 16px 36px 16px',
+        background: 'rgba(0, 0, 0, 0.35)',
+        pointerEvents: 'none',
+      }}
+      role="dialog"
+      aria-modal="true"
+      aria-label="match result"
+    >
+      <div
+        className="card"
+        style={{
+          maxWidth: '380px',
+          width: '100%',
+          textAlign: 'center',
+          pointerEvents: 'auto',
+          boxShadow: '0 8px 32px rgba(0, 0, 0, 0.4)',
+          background: 'var(--card-bg)',
+          backdropFilter: 'blur(12px)',
+          padding: '24px 20px',
+        }}
+      >
         <h2
-          className="modal-title"
-          style={mode === 'multiplayer' && winner !== 'draw' ? { fontSize: '1.4rem' } : {}}
+          style={{
+            fontSize: '2.2rem',
+            fontWeight: 'bold',
+            color: 'var(--text-main)',
+            marginBottom: '20px',
+            letterSpacing: '2px',
+          }}
         >
-          {displayTitle}
+          {title}
         </h2>
 
-        <div className="modal-symbols" aria-hidden="true">
-          {symbols}
-        </div>
-
-        <p className="modal-subtitle">{subtitle}</p>
-
-        {showRematch && (
-          <div className="modal-rematch-status">
-            <div className="rematch-player">
-              <span>{p1.symbol} Player 1</span>
-              <span className={`rematch-player-status ${p1RematchReady ? 'ready' : 'waiting'}`}>
-                {p1RematchReady ? 'Ready' : 'Waiting'}
-              </span>
-            </div>
-            <div className="rematch-player">
-              <span>{p2?.symbol ?? '?'} Player 2</span>
-              <span className={`rematch-player-status ${p2RematchReady ? 'ready' : 'waiting'}`}>
-                {p2RematchReady ? 'Ready' : 'Waiting'}
-              </span>
-            </div>
-          </div>
-        )}
-
-        <div className="modal-actions">
+        <div className="modal-actions" style={{ display: 'flex', gap: '10px' }}>
           {showRematch ? (
             <>
               <button
                 id="btn-rematch"
-                className={`btn btn--primary ${myRematchReady ? 'btn--ghost' : ''}`}
+                className="btn btn--primary"
                 onClick={onRematch}
                 disabled={myRematchReady}
+                style={{ flex: 1 }}
               >
-                {myRematchReady ? 'Waiting For Opponent' : 'Rematch'}
+                {myRematchReady ? 'waiting...' : 'rematch'}
               </button>
-              <button id="btn-leave-room" className="btn btn--danger" onClick={onHome}>
-                Leave Room
+              <button
+                id="btn-leave-room"
+                className="btn btn--secondary"
+                onClick={onHome}
+                style={{ flex: 1 }}
+              >
+                exit
               </button>
             </>
           ) : (
             <>
-              <button id="btn-play-again" className="btn btn--primary" onClick={onPlayAgain}>
-                {mode === 'computer' ? 'Try Again' : 'Play Again'}
+              <button
+                id="btn-play-again"
+                className="btn btn--primary"
+                onClick={onPlayAgain}
+                style={{ flex: 1 }}
+              >
+                rematch
               </button>
-              <button id="btn-back-home" className="btn btn--ghost" onClick={onHome}>
-                Back To Home
+              <button
+                id="btn-back-home"
+                className="btn btn--secondary"
+                onClick={onHome}
+                style={{ flex: 1 }}
+              >
+                exit
               </button>
             </>
           )}
