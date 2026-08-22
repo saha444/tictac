@@ -28,20 +28,28 @@ export default function App() {
     document.documentElement.setAttribute('data-theme', theme);
   }, [theme]);
 
-  // Warm up socket connection & server on initial page load in background
+  // Warm up socket connection & server on initial page load / first touch in background
   useEffect(() => {
-    try {
-      const s = getSocket();
-      if (!s.connected) {
-        s.connect();
+    function warmUp() {
+      try {
+        const s = getSocket();
+        if (!s.connected) {
+          s.connect();
+        }
+        const url = getServerUrl();
+        if (url && url.startsWith('http')) {
+          fetch(`${url}/health`, { mode: 'cors' }).catch(() => {});
+        }
+      } catch {
+        // Ignore background warmup errors
       }
-      const url = getServerUrl();
-      if (url && url.startsWith('http')) {
-        fetch(`${url}/health`, { mode: 'cors' }).catch(() => {});
-      }
-    } catch {
-      // Ignore background warmup errors
     }
+
+    warmUp();
+    window.addEventListener('pointerdown', warmUp, { once: true });
+    return () => {
+      window.removeEventListener('pointerdown', warmUp);
+    };
   }, []);
 
   function toggleTheme() {
