@@ -52,6 +52,10 @@ export default function Game({
     ? (initialGameState?.players?.player2?.symbol ?? '○')
     : getPairedSymbol(mySymbol);
 
+  const [lastStartingPlayer, setLastStartingPlayer] = useState<PlayerKey>(
+    initialGameState?.currentPlayer ?? 'player1'
+  );
+
   const [gameState, setGameState] = useState<GameState>(() => {
     if (initialGameState && isMultiplayer) {
       return {
@@ -125,14 +129,20 @@ export default function Game({
 
       if (data.type === 'STATE_UPDATE') {
         setGameState(data.gameState);
+        if (data.gameState.status === 'playing' && data.gameState.winner === null) {
+          setLastStartingPlayer(data.gameState.currentPlayer);
+        }
       } else if (data.type === 'CHALLENGE_4GRID') {
         setIs4GridChallengedByOpponent(true);
       } else if (data.type === 'ACCEPT_4GRID') {
+        const nextStart: PlayerKey = lastStartingPlayer === 'player1' ? 'player2' : 'player1';
+        setLastStartingPlayer(nextStart);
+
         const resetState: GameState = {
           ...gameState,
           board: initializeBoard(4),
           gridSize: 4,
-          currentPlayer: 'player1',
+          currentPlayer: nextStart,
           status: 'playing',
           winner: null,
           winningCells: [],
@@ -148,10 +158,13 @@ export default function Game({
 
         if (data.p1Ready && data.p2Ready) {
           const currentSize = gameState.gridSize ?? 3;
+          const nextStart: PlayerKey = lastStartingPlayer === 'player1' ? 'player2' : 'player1';
+          setLastStartingPlayer(nextStart);
+
           const resetState: GameState = {
             ...gameState,
             board: initializeBoard(currentSize),
-            currentPlayer: 'player1',
+            currentPlayer: nextStart,
             status: 'playing',
             winner: null,
             winningCells: [],
@@ -181,7 +194,7 @@ export default function Game({
     return () => {
       conn.off('data', handlePeerData);
     };
-  }, [isMultiplayer, peerSession, myPlayerKey, gameState]);
+  }, [isMultiplayer, peerSession, myPlayerKey, gameState, lastStartingPlayer]);
 
   const handleCellClick = useCallback(
     (index: number) => {
@@ -221,10 +234,13 @@ export default function Game({
 
   function handlePlayAgain() {
     const currentSize = gameState.gridSize ?? 3;
+    const nextStart: PlayerKey = lastStartingPlayer === 'player1' ? 'player2' : 'player1';
+    setLastStartingPlayer(nextStart);
+
     setGameState((prev) => ({
       ...prev,
       board: initializeBoard(currentSize),
-      currentPlayer: 'player1',
+      currentPlayer: nextStart,
       status: 'playing',
       winner: null,
       winningCells: [],
@@ -244,12 +260,15 @@ export default function Game({
   }
 
   function handleAccept4Grid() {
+    const nextStart: PlayerKey = lastStartingPlayer === 'player1' ? 'player2' : 'player1';
+    setLastStartingPlayer(nextStart);
+
     const newBoard = initializeBoard(4);
     const newGameState: GameState = {
       ...gameState,
       board: newBoard,
       gridSize: 4,
-      currentPlayer: 'player1',
+      currentPlayer: nextStart,
       status: 'playing',
       winner: null,
       winningCells: [],
@@ -281,10 +300,13 @@ export default function Game({
 
     if (nextP1Ready && nextP2Ready) {
       const currentSize = gameState.gridSize ?? 3;
+      const nextStart: PlayerKey = lastStartingPlayer === 'player1' ? 'player2' : 'player1';
+      setLastStartingPlayer(nextStart);
+
       const resetState: GameState = {
         ...gameState,
         board: initializeBoard(currentSize),
-        currentPlayer: 'player1',
+        currentPlayer: nextStart,
         status: 'playing',
         winner: null,
         winningCells: [],
