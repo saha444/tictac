@@ -8,7 +8,7 @@ import { checkWinner } from '../game/winnerDetection';
 import { makeMove } from '../game/boardLogic';
 import { predictBestMove } from '../game/aiEngine';
 import { P1_VALUE, P2_VALUE } from '../game/multiplicationEngine';
-import { getSocket } from '../multiplayer/socketClient';
+import { PeerSession } from '../multiplayer/peerMultiplayer';
 
 interface GameProps {
   mode: GameMode;
@@ -17,6 +17,7 @@ interface GameProps {
   roomCode?: string;
   myPlayerKey?: PlayerKey;
   initialGameState?: Partial<GameState>;
+  peerSession?: PeerSession | null;
   onHome: () => void;
 }
 
@@ -41,10 +42,10 @@ export default function Game({
   roomCode,
   myPlayerKey = 'player1',
   initialGameState,
+  peerSession,
   onHome,
 }: GameProps) {
   const isMultiplayer = mode === 'multiplayer';
-  const socket = isMultiplayer ? getSocket() : null;
 
   const p2Symbol = isMultiplayer
     ? (initialGameState?.players?.player2?.symbol ?? '○')
@@ -106,70 +107,59 @@ export default function Game({
   }, [gameState.currentPlayer, gameState.status, isMultiplayer, difficulty, gameState.board]);
 
   useEffect(() => {
-    if (!isMultiplayer || !socket) return;
+    if (!isMultiplayer || !peerSession || !peerSession.conn) return;
 
-    function onBoardUpdated({ room }: any) {
-      setGameState((prev) => ({
-        ...prev,
-        board: room.board,
-        currentPlayer: room.currentPlayer,
-        status: room.status,
-        winner: room.winner,
-        winningCells: room.winningCells,
-        players: {
-          player1: { ...prev.players.player1, ...room.players.player1 },
-          player2: room.players.player2
-            ? { ...prev.players.player2, ...room.players.player2 }
-            : prev.players.player2,
-        },
-      }));
-    }
+    const conn = peerSession.conn;
 
-    function onRematchStatus({ ready, room, p1Ready, p2Ready }: any) {
-      setP1RematchReady(p1Ready);
-      setP2RematchReady(p2Ready);
-      if (ready) {
+    function handlePeerData(data: any) {
+      if (!data) return;
+
+      if (data.type === 'STATE_UPDATE') {
+        setGameState(data.gameState);
+      } else if (data.type === 'REMATCH_REQUEST') {
+        if (data.playerKey === 'player1') setP1RematchReady(true);
+        if (data.playerKey === 'player2') setP2RematchReady(true);
+
+        if (data.p1Ready && data.p2Ready) {
+          const resetState: GameState = {
+            ...gameState,
+            board: initializeBoard(),
+            currentPlayer: 'player1',
+            status: 'playing',
+            winner: null,
+            winningCells: [],
+          };
+          setGameState(resetState);
+          setP1RematchReady(false);
+          setP2RematchReady(false);
+        }
+      } else if (data.type === 'LEAVE') {
         setGameState((prev) => ({
           ...prev,
-          board: room.board,
-          currentPlayer: room.currentPlayer,
-          status: room.status,
-          winner: null,
-          winningCells: [],
+          status: 'finished',
+          winner: myPlayerKey === 'player1' ? 'player1' : 'player2',
         }));
-        setP1RematchReady(false);
-        setP2RematchReady(false);
       }
     }
 
-    function onOpponentLeft() {
+    conn.on('data', handlePeerData);
+    conn.on('close', () => {
       setGameState((prev) => ({
         ...prev,
         status: 'finished',
         winner: myPlayerKey === 'player1' ? 'player1' : 'player2',
       }));
-    }
-
-    socket.on('board-updated', onBoardUpdated);
-    socket.on('rematch-status', onRematchStatus);
-    socket.on('opponent-left', onOpponentLeft);
+    });
 
     return () => {
-      socket.off('board-updated', onBoardUpdated);
-      socket.off('rematch-status', onRematchStatus);
-      socket.off('opponent-left', onOpponentLeft);
+      conn.off('data', handlePeerData);
     };
-  }, [isMultiplayer, socket, myPlayerKey]);
+  }, [isMultiplayer, peerSession, myPlayerKey, gameState]);
 
   const handleCellClick = useCallback(
     (index: number) => {
       if (gameState.status !== 'playing') return;
-
-      if (isMultiplayer) {
-        if (gameState.currentPlayer !== myPlayerKey) return;
-        socket?.emit('make-move', { roomCode, cellIndex: index });
-        return;
-      }
+      if (isMultiplayer && gameState.currentPlayer !== myPlayerKey) return;
 
       const currentValue =
         gameState.currentPlayer === 'player1' ? P1_VALUE : P2_VALUE;
@@ -181,16 +171,25 @@ export default function Game({
       const nextPlayer: PlayerKey =
         gameState.currentPlayer === 'player1' ? 'player2' : 'player1';
 
-      setGameState((prev) => ({
-        ...prev,
+      const newState: GameState = {
+        ...gameState,
         board: newBoard,
-        currentPlayer: result.winner ? prev.currentPlayer : nextPlayer,
+        currentPlayer: result.winner ? gameState.currentPlayer : nextPlayer,
         status: result.winner ? 'finished' : 'playing',
         winner: result.winner,
         winningCells: result.winningCells,
-      }));
+      };
+
+      setGameState(newState);
+
+      if (isMultiplayer && peerSession && peerSession.conn) {
+        peerSession.conn.send({
+          type: 'STATE_UPDATE',
+          gameState: newState,
+        });
+      }
     },
-    [gameState, isMultiplayer, myPlayerKey, roomCode, socket]
+    [gameState, isMultiplayer, myPlayerKey, peerSession]
   );
 
   function handlePlayAgain() {
@@ -205,7 +204,41 @@ export default function Game({
   }
 
   function handleRematch() {
-    socket?.emit('rematch-request', { roomCode });
+    if (!peerSession || !peerSession.conn) return;
+
+    const nextP1Ready = myPlayerKey === 'player1' ? true : p1RematchReady;
+    const nextP2Ready = myPlayerKey === 'player2' ? true : p2RematchReady;
+
+    if (myPlayerKey === 'player1') setP1RematchReady(true);
+    if (myPlayerKey === 'player2') setP2RematchReady(true);
+
+    if (nextP1Ready && nextP2Ready) {
+      const resetState: GameState = {
+        ...gameState,
+        board: initializeBoard(),
+        currentPlayer: 'player1',
+        status: 'playing',
+        winner: null,
+        winningCells: [],
+      };
+      setGameState(resetState);
+      setP1RematchReady(false);
+      setP2RematchReady(false);
+
+      peerSession.conn.send({
+        type: 'REMATCH_REQUEST',
+        playerKey: myPlayerKey,
+        p1Ready: true,
+        p2Ready: true,
+      });
+    } else {
+      peerSession.conn.send({
+        type: 'REMATCH_REQUEST',
+        playerKey: myPlayerKey,
+        p1Ready: nextP1Ready,
+        p2Ready: nextP2Ready,
+      });
+    }
   }
 
   const isMyTurn = isMultiplayer

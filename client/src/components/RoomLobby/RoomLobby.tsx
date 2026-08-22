@@ -1,13 +1,13 @@
-import { useState, useEffect, useRef } from 'react';
-import { getSocket } from '../../multiplayer/socketClient';
+import { useState } from 'react';
+import { createPeerRoom, joinPeerRoom, PeerSession } from '../../multiplayer/peerMultiplayer';
+import { GameState } from '../../types';
 
 interface RoomLobbyProps {
   mySymbol: string;
   onBack: () => void;
   onGameReady: (
-    roomCode: string,
-    playerKey: 'player1' | 'player2',
-    initialRoom: any
+    session: PeerSession,
+    initialRoom: GameState
   ) => void;
 }
 
@@ -18,82 +18,28 @@ export default function RoomLobby({ mySymbol, onBack, onGameReady }: RoomLobbyPr
   const [joinCode, setJoinCode] = useState('');
   const [error, setError] = useState('');
   const [copied, setCopied] = useState(false);
-  const [isConnected, setIsConnected] = useState(false);
-
-  const myPlayerKeyRef = useRef<'player1' | 'player2' | null>(null);
-  const roomCodeRef = useRef<string>('');
-
-  const socket = getSocket();
-
-  useEffect(() => {
-    setIsConnected(socket.connected);
-
-    function onConnect() {
-      setIsConnected(true);
-      setError('');
-    }
-
-    function onDisconnect() {
-      setIsConnected(false);
-    }
-
-    function onConnectError() {
-      setIsConnected(false);
-      setError('connecting to multiplayer server... please wait a few seconds');
-    }
-
-    function onGameStart({ room }: any) {
-      if (!myPlayerKeyRef.current || !roomCodeRef.current) return;
-      onGameReady(roomCodeRef.current, myPlayerKeyRef.current, room);
-    }
-
-    socket.on('connect', onConnect);
-    socket.on('disconnect', onDisconnect);
-    socket.on('connect_error', onConnectError);
-    socket.on('game-start', onGameStart);
-
-    if (!socket.connected) {
-      socket.connect();
-    }
-
-    return () => {
-      socket.off('connect', onConnect);
-      socket.off('disconnect', onDisconnect);
-      socket.off('connect_error', onConnectError);
-      socket.off('game-start', onGameStart);
-    };
-  }, [onGameReady, socket]);
+  const [isConnecting, setIsConnecting] = useState(false);
 
   function handleCreateRoom() {
     setError('');
-    myPlayerKeyRef.current = 'player1';
+    setIsConnecting(true);
 
-    function onRoomCreated({ roomCode: code }: any) {
-      roomCodeRef.current = code;
-      setCreatedCode(code);
-      setIsWaiting(true);
-      setView('create');
-      setError('');
-    }
-
-    function onServerError({ message }: any) {
-      setError(message);
-      myPlayerKeyRef.current = null;
-    }
-
-    socket.once('room-created', onRoomCreated);
-    socket.once('error', onServerError);
-
-    if (socket.connected) {
-      socket.emit('create-room', { symbol: mySymbol });
-    } else {
-      setError('connecting to server...');
-      socket.connect();
-      socket.once('connect', () => {
-        setError('');
-        socket.emit('create-room', { symbol: mySymbol });
-      });
-    }
+    createPeerRoom(
+      mySymbol,
+      (code) => {
+        setCreatedCode(code);
+        setIsWaiting(true);
+        setView('create');
+        setIsConnecting(false);
+      },
+      (session, initialGameState) => {
+        onGameReady(session, initialGameState);
+      },
+      (errMsg) => {
+        setError(errMsg);
+        setIsConnecting(false);
+      }
+    );
   }
 
   function handleJoinRoom() {
@@ -103,28 +49,19 @@ export default function RoomLobby({ mySymbol, onBack, onGameReady }: RoomLobbyPr
       return;
     }
     setError('');
+    setIsConnecting(true);
 
-    myPlayerKeyRef.current = 'player2';
-    roomCodeRef.current = code;
-
-    function onServerError({ message }: any) {
-      setError(message);
-      myPlayerKeyRef.current = null;
-      roomCodeRef.current = '';
-    }
-
-    socket.once('error', onServerError);
-
-    if (socket.connected) {
-      socket.emit('join-room', { roomCode: code, symbol: mySymbol });
-    } else {
-      setError('connecting to server...');
-      socket.connect();
-      socket.once('connect', () => {
-        setError('');
-        socket.emit('join-room', { roomCode: code, symbol: mySymbol });
-      });
-    }
+    joinPeerRoom(
+      code,
+      mySymbol,
+      (session, initialGameState) => {
+        onGameReady(session, initialGameState);
+      },
+      (errMsg) => {
+        setError(errMsg);
+        setIsConnecting(false);
+      }
+    );
   }
 
   function copyCode() {
@@ -174,11 +111,6 @@ export default function RoomLobby({ mySymbol, onBack, onGameReady }: RoomLobbyPr
             <span>waiting for opponent</span>
           </div>
         </div>
-
-        <div className="connection-status">
-          <div className={`connection-dot ${isConnected ? 'connection-dot--connected' : ''}`} />
-          {isConnected ? 'connected to server' : 'reconnecting to server'}
-        </div>
       </div>
     );
   }
@@ -223,10 +155,10 @@ export default function RoomLobby({ mySymbol, onBack, onGameReady }: RoomLobbyPr
             id="btn-join-room"
             className="btn btn--secondary"
             onClick={handleJoinRoom}
-            disabled={joinCode.length < 4}
+            disabled={joinCode.length < 4 || isConnecting}
             style={{ marginTop: '16px' }}
           >
-            join room
+            {isConnecting ? 'connecting...' : 'join room'}
           </button>
         </div>
       </div>
@@ -257,8 +189,13 @@ export default function RoomLobby({ mySymbol, onBack, onGameReady }: RoomLobbyPr
         )}
 
         <div className="mode-buttons">
-          <button id="btn-create-room" className="btn btn--primary" onClick={handleCreateRoom}>
-            create room
+          <button
+            id="btn-create-room"
+            className="btn btn--primary"
+            onClick={handleCreateRoom}
+            disabled={isConnecting}
+          >
+            {isConnecting ? 'creating room...' : 'create room'}
           </button>
 
           <div className="divider">or</div>

@@ -4,7 +4,7 @@ import Home from './pages/Home';
 import Game from './pages/Game';
 import RoomLobby from './components/RoomLobby/RoomLobby';
 import { Difficulty, GameMode, PlayerKey, GameState } from './types';
-import { getSocket, getServerUrl } from './multiplayer/socketClient';
+import { PeerSession } from './multiplayer/peerMultiplayer';
 import './index.css';
 
 type AppView = 'landing' | 'home' | 'lobby' | 'game';
@@ -14,6 +14,7 @@ interface MultiplayerSession {
   roomCode: string;
   playerKey: PlayerKey;
   initialState?: Partial<GameState>;
+  peerSession?: PeerSession | null;
 }
 
 export default function App() {
@@ -27,30 +28,6 @@ export default function App() {
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
   }, [theme]);
-
-  // Warm up socket connection & server on initial page load / first touch in background
-  useEffect(() => {
-    function warmUp() {
-      try {
-        const s = getSocket();
-        if (!s.connected) {
-          s.connect();
-        }
-        const url = getServerUrl();
-        if (url && url.startsWith('http')) {
-          fetch(`${url}/health`, { mode: 'cors' }).catch(() => {});
-        }
-      } catch {
-        // Ignore background warmup errors
-      }
-    }
-
-    warmUp();
-    window.addEventListener('pointerdown', warmUp, { once: true });
-    return () => {
-      window.removeEventListener('pointerdown', warmUp);
-    };
-  }, []);
 
   function toggleTheme() {
     setTheme((t) => (t === 'dark' ? 'light' : 'dark'));
@@ -70,13 +47,24 @@ export default function App() {
     setView('lobby');
   }
 
-  function handleGameReady(roomCode: string, playerKey: PlayerKey, initialRoom: Partial<GameState>) {
-    setMpSession({ roomCode, playerKey, initialState: initialRoom });
+  function handleGameReady(session: PeerSession, initialRoom: GameState) {
+    setMpSession({
+      roomCode: session.roomCode,
+      playerKey: session.role,
+      initialState: initialRoom,
+      peerSession: session,
+    });
     setView('game');
   }
 
   function handleGoHome() {
     setView('home');
+    if (mpSession?.peerSession?.conn) {
+      try {
+        mpSession.peerSession.conn.send({ type: 'LEAVE' });
+        mpSession.peerSession.conn.close();
+      } catch {}
+    }
     setMpSession(null);
   }
 
@@ -115,6 +103,7 @@ export default function App() {
             roomCode={mpSession?.roomCode}
             myPlayerKey={mpSession?.playerKey ?? 'player1'}
             initialGameState={mpSession?.initialState}
+            peerSession={mpSession?.peerSession}
             onHome={handleGoHome}
           />
         )}
