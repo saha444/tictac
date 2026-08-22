@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { getSocket } from '../../multiplayer/socketClient';
+import { getSocket, isServerConfigured } from '../../multiplayer/socketClient';
 
 interface RoomLobbyProps {
   mySymbol: string;
@@ -39,7 +39,11 @@ export default function RoomLobby({ mySymbol, onBack, onGameReady }: RoomLobbyPr
 
     function onConnectError() {
       setIsConnected(false);
-      setError('unable to connect to multiplayer server');
+      if (!isServerConfigured()) {
+        setError('multiplayer server url (VITE_SERVER_URL) is missing in vercel settings');
+      } else {
+        setError('unable to connect to multiplayer server');
+      }
     }
 
     function onGameStart({ room }: any) {
@@ -67,6 +71,11 @@ export default function RoomLobby({ mySymbol, onBack, onGameReady }: RoomLobbyPr
   function handleCreateRoom() {
     setError('');
     myPlayerKeyRef.current = 'player1';
+
+    if (!isServerConfigured()) {
+      setError('multiplayer server url (VITE_SERVER_URL) is missing in vercel settings');
+      return;
+    }
 
     if (!socket.connected) {
       socket.connect();
@@ -100,6 +109,11 @@ export default function RoomLobby({ mySymbol, onBack, onGameReady }: RoomLobbyPr
 
     myPlayerKeyRef.current = 'player2';
     roomCodeRef.current = code;
+
+    if (!isServerConfigured()) {
+      setError('multiplayer server url (VITE_SERVER_URL) is missing in vercel settings');
+      return;
+    }
 
     if (!socket.connected) {
       socket.connect();
