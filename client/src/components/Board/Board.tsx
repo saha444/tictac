@@ -9,6 +9,7 @@ interface BoardProps {
 
 export default function Board({ gameState, onCellClick, isMyTurn }: BoardProps) {
   const { board, players, winningCells, status } = gameState;
+  const gridSize = Math.round(Math.sqrt(board.length)) || 3;
   const isFinished = status === 'finished';
   const p1Symbol = players.player1.symbol;
   const p2Symbol = players.player2?.symbol ?? '○';
@@ -17,6 +18,7 @@ export default function Board({ gameState, onCellClick, isMyTurn }: BoardProps) 
   return (
     <div
       className={`board ${isGameActive && isMyTurn ? 'board--glow' : ''}`}
+      style={{ gridTemplateColumns: `repeat(${gridSize}, 1fr)` }}
       role="grid"
       aria-label="tic-tac-toe board"
     >

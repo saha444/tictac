@@ -6,9 +6,11 @@ interface ResultModalProps {
   myPlayerKey: PlayerKey;
   p1RematchReady?: boolean;
   p2RematchReady?: boolean;
+  consecutiveDraws?: number;
   onPlayAgain: () => void;
   onHome: () => void;
   onRematch?: () => void;
+  onSwitch4Grid?: () => void;
 }
 
 export default function ResultModal({
@@ -17,9 +19,11 @@ export default function ResultModal({
   myPlayerKey,
   p1RematchReady = false,
   p2RematchReady = false,
+  consecutiveDraws = 0,
   onPlayAgain,
   onHome,
   onRematch,
+  onSwitch4Grid,
 }: ResultModalProps) {
   const { winner } = gameState;
 
@@ -40,6 +44,7 @@ export default function ResultModal({
   const isMultiplayer = mode === 'multiplayer';
   const showRematch = isMultiplayer && onRematch;
   const myRematchReady = myPlayerKey === 'player1' ? p1RematchReady : p2RematchReady;
+  const show4GridPrompt = consecutiveDraws >= 3 && onSwitch4Grid;
 
   return (
     <div
@@ -77,12 +82,23 @@ export default function ResultModal({
             fontSize: '2.2rem',
             fontWeight: 'bold',
             color: 'var(--text-main)',
-            marginBottom: '20px',
+            marginBottom: show4GridPrompt ? '12px' : '20px',
             letterSpacing: '2px',
           }}
         >
           {title}
         </h2>
+
+        {show4GridPrompt && (
+          <button
+            id="btn-switch-4grid"
+            className="btn btn--primary mb-md"
+            onClick={onSwitch4Grid}
+            style={{ width: '100%', padding: '12px', fontSize: '0.95rem' }}
+          >
+            challenge a 4 grid play?
+          </button>
+        )}
 
         <div className="modal-actions" style={{ display: 'flex', gap: '10px' }}>
           {showRematch ? (

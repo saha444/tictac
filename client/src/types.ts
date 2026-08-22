@@ -20,6 +20,7 @@ export interface GamePlayers {
 
 export interface GameState {
   board: number[];
+  gridSize?: number;
   players: GamePlayers;
   currentPlayer: PlayerKey;
   status: GameStatus;

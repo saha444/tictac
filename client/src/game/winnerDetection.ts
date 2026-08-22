@@ -3,9 +3,8 @@
 // ============================================================
 
 import {
-  WINNING_LINES,
-  P1_WIN_PRODUCT,
-  P2_WIN_PRODUCT,
+  getWinningLines,
+  getWinProduct,
   EMPTY,
   getLineProduct,
 } from './multiplicationEngine';
@@ -17,15 +16,20 @@ export type WinnerResult = {
 
 /**
  * Check the board for a winner.
- * board: flat array [9] of 1 | 2 | 5
+ * Automatically infers gridSize (3 for 9 cells, 4 for 16 cells).
  */
 export function checkWinner(board: number[]): WinnerResult {
-  for (const line of WINNING_LINES) {
+  const gridSize = Math.round(Math.sqrt(board.length)) || 3;
+  const winningLines = getWinningLines(gridSize);
+  const p1Target = getWinProduct(2, gridSize);
+  const p2Target = getWinProduct(5, gridSize);
+
+  for (const line of winningLines) {
     const product = getLineProduct(board, line);
-    if (product === P1_WIN_PRODUCT) {
+    if (product === p1Target) {
       return { winner: 'player1', winningCells: [...line] };
     }
-    if (product === P2_WIN_PRODUCT) {
+    if (product === p2Target) {
       return { winner: 'player2', winningCells: [...line] };
     }
   }

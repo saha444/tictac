@@ -21,9 +21,10 @@ interface GameProps {
   onHome: () => void;
 }
 
-function createInitialState(p1Symbol: string, p2Symbol: string): GameState {
+function createInitialState(p1Symbol: string, p2Symbol: string, gridSize: number = 3): GameState {
   return {
-    board: initializeBoard(),
+    board: initializeBoard(gridSize),
+    gridSize,
     players: {
       player1: { symbol: p1Symbol, value: P1_VALUE },
       player2: { symbol: p2Symbol, value: P2_VALUE },
@@ -54,7 +55,8 @@ export default function Game({
   const [gameState, setGameState] = useState<GameState>(() => {
     if (initialGameState && isMultiplayer) {
       return {
-        board: initialGameState.board ?? initializeBoard(),
+        board: initialGameState.board ?? initializeBoard(3),
+        gridSize: initialGameState.gridSize ?? 3,
         players: {
           player1: initialGameState.players?.player1 ?? { symbol: mySymbol, value: P1_VALUE },
           player2: initialGameState.players?.player2 ?? { symbol: p2Symbol, value: P2_VALUE },
@@ -68,13 +70,14 @@ export default function Game({
       };
     }
     return {
-      ...createInitialState(mySymbol, p2Symbol),
+      ...createInitialState(mySymbol, p2Symbol, 3),
       roomCode,
       myPlayerKey,
     };
   });
 
   const [scores, setScores] = useState({ player1: 0, player2: 0, draws: 0 });
+  const [consecutiveDraws, setConsecutiveDraws] = useState(0);
   const [p1RematchReady, setP1RematchReady] = useState(false);
   const [p2RematchReady, setP2RematchReady] = useState(false);
   const aiTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -82,10 +85,13 @@ export default function Game({
   useEffect(() => {
     if (gameState.winner === 'player1') {
       setScores((s) => ({ ...s, player1: s.player1 + 1 }));
+      setConsecutiveDraws(0);
     } else if (gameState.winner === 'player2') {
       setScores((s) => ({ ...s, player2: s.player2 + 1 }));
+      setConsecutiveDraws(0);
     } else if (gameState.winner === 'draw') {
       setScores((s) => ({ ...s, draws: s.draws + 1 }));
+      setConsecutiveDraws((prev) => prev + 1);
     }
   }, [gameState.winner]);
 
@@ -121,9 +127,10 @@ export default function Game({
         if (data.playerKey === 'player2') setP2RematchReady(true);
 
         if (data.p1Ready && data.p2Ready) {
+          const currentSize = gameState.gridSize ?? 3;
           const resetState: GameState = {
             ...gameState,
-            board: initializeBoard(),
+            board: initializeBoard(currentSize),
             currentPlayer: 'player1',
             status: 'playing',
             winner: null,
@@ -193,14 +200,40 @@ export default function Game({
   );
 
   function handlePlayAgain() {
+    const currentSize = gameState.gridSize ?? 3;
     setGameState((prev) => ({
       ...prev,
-      board: initializeBoard(),
+      board: initializeBoard(currentSize),
       currentPlayer: 'player1',
       status: 'playing',
       winner: null,
       winningCells: [],
     }));
+  }
+
+  function handleSwitch4Grid() {
+    const nextGridSize = 4;
+    const newBoard = initializeBoard(nextGridSize);
+    const newGameState: GameState = {
+      ...gameState,
+      board: newBoard,
+      gridSize: nextGridSize,
+      currentPlayer: 'player1',
+      status: 'playing',
+      winner: null,
+      winningCells: [],
+    };
+
+    setGameState(newGameState);
+    setP1RematchReady(false);
+    setP2RematchReady(false);
+
+    if (isMultiplayer && peerSession?.conn) {
+      peerSession.conn.send({
+        type: 'STATE_UPDATE',
+        gameState: newGameState,
+      });
+    }
   }
 
   function handleRematch() {
@@ -213,9 +246,10 @@ export default function Game({
     if (myPlayerKey === 'player2') setP2RematchReady(true);
 
     if (nextP1Ready && nextP2Ready) {
+      const currentSize = gameState.gridSize ?? 3;
       const resetState: GameState = {
         ...gameState,
-        board: initializeBoard(),
+        board: initializeBoard(currentSize),
         currentPlayer: 'player1',
         status: 'playing',
         winner: null,
@@ -256,10 +290,10 @@ export default function Game({
           {isMultiplayer ? 'multiplayer' : 'vs computer'}
         </h1>
         {isMultiplayer && roomCode && (
-          <p className="logo__sub">room: {roomCode}</p>
+          <p className="logo__sub">room: {roomCode} ({gameState.gridSize ?? 3}x{gameState.gridSize ?? 3})</p>
         )}
         {!isMultiplayer && (
-          <p className="logo__sub">{difficulty} mode</p>
+          <p className="logo__sub">{difficulty} mode ({gameState.gridSize ?? 3}x{gameState.gridSize ?? 3})</p>
         )}
       </div>
 
@@ -283,9 +317,11 @@ export default function Game({
           myPlayerKey={myPlayerKey}
           p1RematchReady={p1RematchReady}
           p2RematchReady={p2RematchReady}
+          consecutiveDraws={consecutiveDraws}
           onPlayAgain={handlePlayAgain}
           onHome={onHome}
           onRematch={isMultiplayer ? handleRematch : undefined}
+          onSwitch4Grid={handleSwitch4Grid}
         />
       )}
     </div>
