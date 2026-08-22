@@ -23,12 +23,12 @@ export function getSocket(): Socket {
     const targetUrl = getServerUrl();
 
     socket = io(targetUrl, {
-      transports: ['websocket', 'polling'],
+      transports: ['polling', 'websocket'],
       autoConnect: true,
       reconnection: true,
       reconnectionAttempts: 20,
       reconnectionDelay: 500,
-      timeout: 10000,
+      timeout: 15000,
     });
   }
   return socket;

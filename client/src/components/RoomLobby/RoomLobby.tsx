@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { getSocket, isServerConfigured } from '../../multiplayer/socketClient';
+import { getSocket } from '../../multiplayer/socketClient';
 
 interface RoomLobbyProps {
   mySymbol: string;
@@ -68,21 +68,12 @@ export default function RoomLobby({ mySymbol, onBack, onGameReady }: RoomLobbyPr
     setError('');
     myPlayerKeyRef.current = 'player1';
 
-    if (!isServerConfigured()) {
-      setError('multiplayer server url (VITE_SERVER_URL) is missing in vercel settings');
-      return;
-    }
-
-    if (!socket.connected) {
-      socket.connect();
-      setError('connecting to server...');
-    }
-
     function onRoomCreated({ roomCode: code }: any) {
       roomCodeRef.current = code;
       setCreatedCode(code);
       setIsWaiting(true);
       setView('create');
+      setError('');
     }
 
     function onServerError({ message }: any) {
@@ -92,7 +83,17 @@ export default function RoomLobby({ mySymbol, onBack, onGameReady }: RoomLobbyPr
 
     socket.once('room-created', onRoomCreated);
     socket.once('error', onServerError);
-    socket.emit('create-room', { symbol: mySymbol });
+
+    if (socket.connected) {
+      socket.emit('create-room', { symbol: mySymbol });
+    } else {
+      setError('connecting to server...');
+      socket.connect();
+      socket.once('connect', () => {
+        setError('');
+        socket.emit('create-room', { symbol: mySymbol });
+      });
+    }
   }
 
   function handleJoinRoom() {
@@ -106,16 +107,6 @@ export default function RoomLobby({ mySymbol, onBack, onGameReady }: RoomLobbyPr
     myPlayerKeyRef.current = 'player2';
     roomCodeRef.current = code;
 
-    if (!isServerConfigured()) {
-      setError('multiplayer server url (VITE_SERVER_URL) is missing in vercel settings');
-      return;
-    }
-
-    if (!socket.connected) {
-      socket.connect();
-      setError('connecting to server...');
-    }
-
     function onServerError({ message }: any) {
       setError(message);
       myPlayerKeyRef.current = null;
@@ -123,7 +114,17 @@ export default function RoomLobby({ mySymbol, onBack, onGameReady }: RoomLobbyPr
     }
 
     socket.once('error', onServerError);
-    socket.emit('join-room', { roomCode: code, symbol: mySymbol });
+
+    if (socket.connected) {
+      socket.emit('join-room', { roomCode: code, symbol: mySymbol });
+    } else {
+      setError('connecting to server...');
+      socket.connect();
+      socket.once('connect', () => {
+        setError('');
+        socket.emit('join-room', { roomCode: code, symbol: mySymbol });
+      });
+    }
   }
 
   function copyCode() {
