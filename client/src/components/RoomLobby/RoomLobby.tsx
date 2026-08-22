@@ -18,6 +18,7 @@ export default function RoomLobby({ mySymbol, onBack, onGameReady }: RoomLobbyPr
   const [joinCode, setJoinCode] = useState('');
   const [error, setError] = useState('');
   const [copied, setCopied] = useState(false);
+  const [isConnected, setIsConnected] = useState(false);
 
   const myPlayerKeyRef = useRef<'player1' | 'player2' | null>(null);
   const roomCodeRef = useRef<string>('');
@@ -25,13 +26,40 @@ export default function RoomLobby({ mySymbol, onBack, onGameReady }: RoomLobbyPr
   const socket = getSocket();
 
   useEffect(() => {
+    setIsConnected(socket.connected);
+
+    function onConnect() {
+      setIsConnected(true);
+      setError('');
+    }
+
+    function onDisconnect() {
+      setIsConnected(false);
+    }
+
+    function onConnectError() {
+      setIsConnected(false);
+      setError('unable to connect to multiplayer server');
+    }
+
     function onGameStart({ room }: any) {
       if (!myPlayerKeyRef.current || !roomCodeRef.current) return;
       onGameReady(roomCodeRef.current, myPlayerKeyRef.current, room);
     }
 
+    socket.on('connect', onConnect);
+    socket.on('disconnect', onDisconnect);
+    socket.on('connect_error', onConnectError);
     socket.on('game-start', onGameStart);
+
+    if (!socket.connected) {
+      socket.connect();
+    }
+
     return () => {
+      socket.off('connect', onConnect);
+      socket.off('disconnect', onDisconnect);
+      socket.off('connect_error', onConnectError);
       socket.off('game-start', onGameStart);
     };
   }, [onGameReady, socket]);
@@ -39,6 +67,11 @@ export default function RoomLobby({ mySymbol, onBack, onGameReady }: RoomLobbyPr
   function handleCreateRoom() {
     setError('');
     myPlayerKeyRef.current = 'player1';
+
+    if (!socket.connected) {
+      socket.connect();
+      setError('connecting to server...');
+    }
 
     function onRoomCreated({ roomCode: code }: any) {
       roomCodeRef.current = code;
@@ -60,13 +93,18 @@ export default function RoomLobby({ mySymbol, onBack, onGameReady }: RoomLobbyPr
   function handleJoinRoom() {
     const code = joinCode.trim().toUpperCase();
     if (code.length < 4) {
-      setError('Enter A Valid Room Code');
+      setError('enter a valid room code');
       return;
     }
     setError('');
 
     myPlayerKeyRef.current = 'player2';
     roomCodeRef.current = code;
+
+    if (!socket.connected) {
+      socket.connect();
+      setError('connecting to server...');
+    }
 
     function onServerError({ message }: any) {
       setError(message);
@@ -88,16 +126,16 @@ export default function RoomLobby({ mySymbol, onBack, onGameReady }: RoomLobbyPr
   if (view === 'create' && isWaiting) {
     return (
       <div className="page page-enter">
-        <button className="nav-back" onClick={onBack}>Back</button>
+        <button className="nav-back" onClick={onBack}>back</button>
 
         <div className="logo">
-          <h1 className="logo__title">Room Ready</h1>
-          <p className="logo__sub">Share The Code With Your Friend</p>
+          <h1 className="logo__title">room ready</h1>
+          <p className="logo__sub">share the code with your friend</p>
         </div>
 
         <div className="card">
           <div className="room-code-display">
-            <div className="room-code-label">Room Code</div>
+            <div className="room-code-label">room code</div>
             <div className="room-code-value" id="room-code">{createdCode}</div>
           </div>
 
@@ -106,14 +144,14 @@ export default function RoomLobby({ mySymbol, onBack, onGameReady }: RoomLobbyPr
             className="btn btn--ghost btn--sm room-code-copy"
             onClick={copyCode}
           >
-            {copied ? 'Copied' : 'Copy Code'}
+            {copied ? 'copied' : 'copy code'}
           </button>
 
           <div className="section-sep" style={{ margin: '16px 0' }} />
 
           <div className="flex items-center" style={{ gap: '8px', justifyContent: 'center' }}>
             <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-              Your Symbol:
+              your symbol:
             </span>
             <span style={{ fontSize: '1.5rem' }}>{mySymbol}</span>
           </div>
@@ -122,13 +160,13 @@ export default function RoomLobby({ mySymbol, onBack, onGameReady }: RoomLobbyPr
             <div className="waiting-dot" />
             <div className="waiting-dot" />
             <div className="waiting-dot" />
-            <span>Waiting For Opponent</span>
+            <span>waiting for opponent</span>
           </div>
         </div>
 
         <div className="connection-status">
-          <div className="connection-dot connection-dot--connected" />
-          Connected To Server
+          <div className={`connection-dot ${isConnected ? 'connection-dot--connected' : ''}`} />
+          {isConnected ? 'connected to server' : 'reconnecting to server'}
         </div>
       </div>
     );
@@ -141,21 +179,21 @@ export default function RoomLobby({ mySymbol, onBack, onGameReady }: RoomLobbyPr
           className="nav-back"
           onClick={() => { setView('choose'); setError(''); }}
         >
-          Back
+          back
         </button>
 
         <div className="logo">
-          <h1 className="logo__title">Join Room</h1>
-          <p className="logo__sub">Enter Your Friend's Room Code</p>
+          <h1 className="logo__title">join room</h1>
+          <p className="logo__sub">enter your friend's room code</p>
         </div>
 
         <div className="card">
           <div className="input-group">
-            <label className="input-label" htmlFor="join-code-input">Room Code</label>
+            <label className="input-label" htmlFor="join-code-input">room code</label>
             <input
               id="join-code-input"
               className="text-input"
-              placeholder="A7K29"
+              placeholder="a7k29"
               value={joinCode}
               onChange={(e) => setJoinCode(e.target.value.toUpperCase().slice(0, 5))}
               maxLength={5}
@@ -165,7 +203,7 @@ export default function RoomLobby({ mySymbol, onBack, onGameReady }: RoomLobbyPr
           </div>
 
           {error && (
-            <div style={{ color: 'var(--accent)', fontSize: '0.85rem', marginTop: '8px' }}>
+            <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginTop: '8px' }}>
               {error}
             </div>
           )}
@@ -177,7 +215,7 @@ export default function RoomLobby({ mySymbol, onBack, onGameReady }: RoomLobbyPr
             disabled={joinCode.length < 4}
             style={{ marginTop: '16px' }}
           >
-            Join Room
+            join room
           </button>
         </div>
       </div>
@@ -186,40 +224,40 @@ export default function RoomLobby({ mySymbol, onBack, onGameReady }: RoomLobbyPr
 
   return (
     <div className="page page-enter">
-      <button className="nav-back" onClick={onBack}>Back</button>
+      <button className="nav-back" onClick={onBack}>back</button>
 
       <div className="logo">
-        <h1 className="logo__title">Multiplayer</h1>
-        <p className="logo__sub">Play With A Friend</p>
+        <h1 className="logo__title">multiplayer</h1>
+        <p className="logo__sub">play with a friend</p>
       </div>
 
       <div className="card">
         <div className="flex items-center gap-sm mb-md">
           <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>
-            Your Symbol:
+            your symbol:
           </span>
           <span style={{ fontSize: '1.8rem' }}>{mySymbol}</span>
         </div>
 
         {error && (
-          <div style={{ color: 'var(--accent)', fontSize: '0.85rem', marginBottom: '12px' }}>
+          <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: '12px' }}>
             {error}
           </div>
         )}
 
         <div className="mode-buttons">
           <button id="btn-create-room" className="btn btn--primary" onClick={handleCreateRoom}>
-            Create Room
+            create room
           </button>
 
-          <div className="divider">Or</div>
+          <div className="divider">or</div>
 
           <button
             id="btn-join-room-view"
             className="btn btn--secondary"
             onClick={() => setView('join')}
           >
-            Join A Room
+            join a room
           </button>
         </div>
       </div>
