@@ -654,16 +654,19 @@ input {
   }
 
   .cell {
-    width: clamp(68px, 24vw, 92px);
-    height: clamp(68px, 24vw, 92px);
-    font-size: clamp(1.6rem, 6vw, 2.2rem);
-    border-radius: 12px;
+    width: 100% !important;
+    height: auto !important;
+    aspect-ratio: 1 / 1 !important;
+    font-size: clamp(1rem, 4vw, 1.8rem) !important;
+    border-radius: clamp(6px, 1.5vw, 10px);
   }
 
   .board {
-    gap: 6px;
-    padding: 10px;
+    gap: clamp(4px, 1vw, 6px);
+    padding: clamp(6px, 1.5vw, 10px);
     border-radius: 16px;
+    width: 100%;
+    max-width: min(94vw, 420px);
   }
 
   .symbol-grid {
