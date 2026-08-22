@@ -1,7 +1,6 @@
 import Peer, { DataConnection } from 'peerjs';
 import { GameState, PlayerKey } from '../types';
-import { initializeBoard, makeMove } from '../game/boardLogic';
-import { checkWinner } from '../game/winnerDetection';
+import { initializeBoard } from '../game/boardLogic';
 import { P1_VALUE, P2_VALUE } from '../game/multiplicationEngine';
 
 export interface PeerSession {
@@ -10,6 +9,21 @@ export interface PeerSession {
   role: PlayerKey;
   roomCode: string;
 }
+
+const STUN_CONFIG = {
+  debug: 1,
+  config: {
+    iceServers: [
+      { urls: 'stun:stun.l.google.com:19302' },
+      { urls: 'stun:stun1.l.google.com:19302' },
+      { urls: 'stun:stun2.l.google.com:19302' },
+      { urls: 'stun:stun3.l.google.com:19302' },
+      { urls: 'stun:stun4.l.google.com:19302' },
+      { urls: 'stun:global.stun.twilio.com:3478' },
+    ],
+    iceCandidatePoolSize: 10,
+  },
+};
 
 export function generateRoomCode(): string {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -29,9 +43,7 @@ export function createPeerRoom(
   const roomCode = generateRoomCode();
   const peerId = `tictac-game-${roomCode.toLowerCase()}`;
 
-  const peer = new Peer(peerId, {
-    debug: 1,
-  });
+  const peer = new Peer(peerId, STUN_CONFIG);
 
   peer.on('open', () => {
     onCodeReady(roomCode);
@@ -88,9 +100,7 @@ export function joinPeerRoom(
   const cleanCode = roomCode.trim().toLowerCase();
   const hostPeerId = `tictac-game-${cleanCode}`;
 
-  const peer = new Peer({
-    debug: 1,
-  });
+  const peer = new Peer(STUN_CONFIG);
 
   peer.on('open', () => {
     const conn = peer.connect(hostPeerId, {
@@ -99,7 +109,7 @@ export function joinPeerRoom(
     });
 
     conn.on('open', () => {
-      // Waiting for GAME_START payload from host
+      // Data channel open, host will transmit GAME_START
     });
 
     conn.on('data', (data: any) => {
