@@ -30,6 +30,7 @@ function createRoom(socketId, symbol) {
       player1: { socketId, symbol, value: P1_VALUE, rematchReady: false },
       player2: null,
     },
+    startingPlayer: 'player1',
     currentPlayer: 'player1',
     status: 'waiting', // waiting | playing | finished
     winner: null,
@@ -113,8 +114,10 @@ function requestRematch(roomCode, socketId) {
 
   if (bothReady) {
     // Reset game
+    const nextStart = (room.startingPlayer || 'player1') === 'player1' ? 'player2' : 'player1';
     room.board = initBoard();
-    room.currentPlayer = 'player1';
+    room.startingPlayer = nextStart;
+    room.currentPlayer = nextStart;
     room.status = 'playing';
     room.winner = null;
     room.winningCells = [];

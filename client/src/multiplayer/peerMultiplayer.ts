@@ -74,6 +74,7 @@ export function createPeerRoom(
           player1: { symbol, value: P1_VALUE, name: playerName || 'player 1' },
           player2: { symbol: p2Symbol, value: P2_VALUE, name: p2Name },
         },
+        startingPlayer: 'player1',
         currentPlayer: 'player1',
         status: 'playing',
         winner: null,

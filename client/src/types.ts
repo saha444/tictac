@@ -23,6 +23,7 @@ export interface GameState {
   gridSize?: number;
   players: GamePlayers;
   currentPlayer: PlayerKey;
+  startingPlayer?: PlayerKey;
   status: GameStatus;
   winner: WinnerType;
   winningCells: number[];

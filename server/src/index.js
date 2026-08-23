@@ -127,6 +127,7 @@ function sanitizeRoom(room) {
   return {
     code: room.code,
     board: room.board,
+    startingPlayer: room.startingPlayer || 'player1',
     currentPlayer: room.currentPlayer,
     status: room.status,
     winner: room.winner,
